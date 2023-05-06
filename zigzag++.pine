@@ -1,0 +1,87 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © LucemAnb
+
+//@version=4
+//@author=lucemanb
+
+//
+//       THIS CODE IS BASED FROM THE MT4 ZIGZAG INDICATOR
+//       THE ZIGZAG SETTINGS FOR THE MAIN ONE ON TRADINGVIEW DO NOT WORK THE SAME AS MT4
+//       I HOPE U LOVE IT
+//
+
+// Ping me for donations, Collaborations or Support
+
+
+////////
+// Seek Menu
+study("ZigZag++", "ZigZag++ Lucem Anb", true, format.price, max_labels_count=51, max_lines_count=50)
+
+
+////////
+// Fetch Ingredients 
+// [
+Depth       = input(12, "Depth", input.integer, minval=1, step=1)
+Deviation   = input(5, "Deviation", input.integer, minval=1, step=1)
+Backstep    = input(2, "Backstep", input.integer, minval=2, step=1)
+line_thick  = input(2, "Line Thickness", input.integer, minval=1, maxval=4)
+upcolor     = input(color.lime, "Bull Color")
+dncolor     = input(color.red, "Bear Color")
+repaint     = input(true, "Repaint Levels")
+// ]
+
+
+//////// 
+// Bake
+// [
+var last_h = 1, last_h := last_h + 1
+var last_l = 1, last_l := last_l + 1
+var lw = 1, var hg = 1
+lw := lw + 1, hg := hg + 1
+p_lw = -lowestbars(Depth), p_hg = -highestbars(Depth)
+lowing = lw == p_lw or low - low[p_lw] > Deviation*syminfo.mintick
+highing = hg == p_hg or high[p_hg] - high > Deviation*syminfo.mintick
+lh = barssince(not highing[1]), ll = barssince(not lowing[1])
+down = barssince(not (lh > ll)) >= Backstep, lower = low[lw] > low[p_lw], higher = high[hg] < high[p_hg]
+if lw != p_lw and (not down[1] or lower)
+    lw := p_lw < hg ? p_lw : 0
+if hg != p_hg and (down[1] or higher)
+    hg := p_hg < lw ? p_hg : 0
+
+line zz = na
+label point = na
+x1 = down ? lw : hg
+y1 = down ? low[lw] : high[hg]
+
+if down == down[1]
+    if repaint
+        label.delete(point[1])
+        line.delete(zz[1])
+    down
+if down != down[1]
+    if down
+        last_h := hg
+    else
+        last_l := lw
+    if not repaint
+        nx = down?last_h:last_l
+        zz := line.new(bar_index-nx, down ? high[nx] : low[nx], bar_index-(down?last_l:last_h), down ? low[last_l] : high[last_h], width=line_thick, color=down?upcolor:dncolor)
+        point := label.new(bar_index-nx, down ? high[nx] : low[nx], down ? (high[nx] > high[last_h[1]]?"HH":"LH") : (low[nx] < low[last_l[1]] ? "LL" : "HL"), style=down?label.style_label_down:label.style_label_up, size=size.tiny, color=down?dncolor:upcolor, textcolor=color.black, tooltip = down ? (high[nx] > high[last_h[1]]?"Higher High":"Lower High") : (low[nx] < low[last_l[1]] ? "Lower Low" : "Higher Low"))
+    down
+if repaint
+    zz := line.new(bar_index-(down?last_h:last_l), down ? high[last_h] : low[last_l], bar_index-x1, y1, width=line_thick, color=down?dncolor:upcolor)
+    point := label.new(bar_index-x1, y1, down ? (low[x1] < low[last_l] ? "LL" : "HL") : (high[x1] > high[last_h]?"HH":"LH"), style=down?label.style_label_up:label.style_label_down, size=size.tiny, color=down?upcolor:dncolor, textcolor=color.black, tooltip = down ? (low[x1] < low[last_l] ? "Lower Low" : "Higher Low") : (high[x1] > high[last_h]?"Higher High":"Lower High"))
+// ]
+
+
+////////
+// Let it Cool And Serve
+bear = down
+bgcolor(bear?color.red:color.lime, title="Scanning Direction")
+
+
+////////
+// Declare Meal Was Sweet By Force
+alertcondition(bear!=bear[1], "Direction Changed", 'Zigzag on {{ticker}} direction changed at {{time}}')
+alertcondition(bear!=bear[1] and not bear, "Bullish Direction", 'Zigzag on {{ticker}} bullish direction at {{time}}')
+alertcondition(bear!=bear[1] and bear, "Bearish Direction", 'Zigzag on {{ticker}} bearish direction at {{time}}')
